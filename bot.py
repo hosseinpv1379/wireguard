@@ -80,12 +80,28 @@ class ServiceBot:
         cursor.execute("SELECT * FROM service_plans WHERE id = %s", (service_id,))
         service = cursor.fetchone()
         
-        # Get user balance
-        cursor.execute("SELECT balance FROM users WHERE telegram_id = %s", (user_id,))
+        # Get user balance and ID
+        cursor.execute("SELECT id, balance FROM users WHERE telegram_id = %s", (user_id,))
         user = cursor.fetchone()
         
         if user['balance'] < service['price']:
             await query.answer("موجودی شما کافی نیست! لطفا حساب خود را شارژ کنید.", show_alert=True)
+            return
+            
+        # Find available server
+        cursor.execute("""
+            SELECT id, name, ip_address, port
+            FROM servers 
+            WHERE is_active = TRUE 
+            AND status = 'online'
+            AND used_capacity < total_capacity
+            ORDER BY used_capacity ASC 
+            LIMIT 1
+        """)
+        
+        server = cursor.fetchone()
+        if not server:
+            await query.answer("متاسفانه در حال حاضر سرور در دسترس نیست. لطفا بعداً تلاش کنید.", show_alert=True)
             return
         
         # Process purchase
@@ -106,19 +122,74 @@ class ServiceBot:
             
             cursor.execute("""
                 INSERT INTO subscriptions (user_id, plan_id, start_date, end_date)
-                SELECT id, %s, %s, %s FROM users WHERE telegram_id = %s
-            """, (service_id, start_date, end_date, user_id))
+                VALUES (%s, %s, %s, %s)
+            """, (user['id'], service_id, start_date, end_date))
+            
+            subscription_id = cursor.lastrowid
+            
+            # Generate WireGuard config
+            import random
+            client_private_key = f"private_key_{random.randint(1000, 9999)}"  # This should be real WireGuard key generation
+            client_public_key = f"public_key_{random.randint(1000, 9999)}"    # This should be real WireGuard key generation
+            client_ip = f"10.66.66.{random.randint(2, 254)}"                  # This should be proper IP allocation
+            
+            config_data = f"""[Interface]
+PrivateKey = {client_private_key}
+Address = {client_ip}/32
+DNS = 8.8.8.8
+
+[Peer]
+PublicKey = server_public_key
+Endpoint = {server['ip_address']}:{server['port']}
+AllowedIPs = 0.0.0.0/0
+PersistentKeepalive = 25"""
+
+            # Create user_server record
+            cursor.execute("""
+                INSERT INTO user_servers (user_id, server_id, subscription_id, config_data)
+                VALUES (%s, %s, %s, %s)
+            """, (user['id'], server['id'], subscription_id, config_data))
+            
+            # Update server capacity
+            cursor.execute("""
+                UPDATE servers 
+                SET used_capacity = used_capacity + 1
+                WHERE id = %s
+            """, (server['id'],))
             
             # Record transaction
             cursor.execute("""
                 INSERT INTO transactions (user_id, amount, type, status, description)
-                SELECT id, %s, 'purchase', 'completed', %s FROM users WHERE telegram_id = %s
-            """, (service['price'], f"خرید سرویس {service['name']}", user_id))
+                VALUES (%s, %s, 'purchase', 'completed', %s)
+            """, (user['id'], service['price'], f"خرید سرویس {service['name']}"))
             
             # Commit transaction
             self.db.commit()
             
-            await query.answer("سرویس با موفقیت خریداری شد!", show_alert=True)
+            # Get the config to show to user
+            cursor.execute("""
+                SELECT config_data, s.name as server_name
+                FROM user_servers us
+                JOIN servers s ON s.id = us.server_id
+                WHERE us.id = LAST_INSERT_ID()
+            """)
+            config_info = cursor.fetchone()
+            
+            success_message = f"""✅ سرویس با موفقیت خریداری شد!
+
+🔰 سرور: {config_info['server_name']}
+⚡️ مدت اشتراک: {service['duration_days']} روز
+
+📝 کانفیگ شما:
+<pre>{config_info['config_data']}</pre>"""
+
+            await query.edit_message_text(
+                success_message, 
+                parse_mode='HTML',
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("🔙 بازگشت به منو", callback_data='back_to_main')
+                ]])
+            )
             
         except Exception as e:
             self.db.rollback()
