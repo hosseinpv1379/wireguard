@@ -57,13 +57,13 @@ def get_used_ips() -> List[str]:
     return used_ips
 
 # API Endpoints
-@app.get("/status", dependencies=[Depends(verify_api_key)])
+@app.get("/status")
 async def get_status():
     """وضعیت فعلی وایرگارد"""
     status = run_wg_command(["show"])
     return {"status": status}
 
-@app.get("/peers", dependencies=[Depends(verify_api_key)])
+@app.get("/peers")
 async def list_peers() -> List[PeerStatus]:
     """لیست تمام پیرهای فعال"""
     output = run_wg_command(["show", "wg0", "dump"])
