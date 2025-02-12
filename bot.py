@@ -267,7 +267,7 @@ class WireGuardBot:
         next_ip = self._get_next_available_ip()
         
         # Load server config from config.json
-        with open('/opt/wireguard/config.json') as f:
+        with open('config.json') as f:
             config = json.load(f)
         
         server_config = config['server_settings']
@@ -287,7 +287,7 @@ PersistentKeepalive = 25
 
     def _get_next_available_ip(self) -> str:
         """Get next available IP from subnet"""
-        with open('/opt/wireguard/config.json') as f:
+        with open('config.json') as f:
             config = json.load(f)
         
         base_ip = config['server_settings']['subnet'].split('.')[0:3]
