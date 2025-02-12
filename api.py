@@ -81,7 +81,7 @@ async def list_peers() -> List[PeerStatus]:
             ))
     return peers
 
-@app.post("/peers", dependencies=[Depends(verify_api_key)])
+@app.post("/peers")
 async def create_peer(peer: PeerCreate):
     """ایجاد پیر جدید"""
     # Generate keys
@@ -108,7 +108,7 @@ async def create_peer(peer: PeerCreate):
         "allowed_ip": allowed_ip
     }
 
-@app.delete("/peers/{public_key}", dependencies=[Depends(verify_api_key)])
+@app.delete("/peers/{public_key}")
 async def remove_peer(public_key: str):
     """حذف یک پیر"""
     run_wg_command([
@@ -118,7 +118,7 @@ async def remove_peer(public_key: str):
     ])
     return {"status": "removed"}
 
-@app.post("/peers/{public_key}/disable", dependencies=[Depends(verify_api_key)])
+@app.post("/peers/{public_key}/disable")
 async def disable_peer(public_key: str):
     """غیرفعال کردن یک پیر"""
     # Find peer's allowed IPs
@@ -146,7 +146,7 @@ async def disable_peer(public_key: str):
     else:
         raise HTTPException(status_code=404, detail="Peer not found")
 
-@app.post("/peers/{public_key}/enable", dependencies=[Depends(verify_api_key)])
+@app.post("/peers/{public_key}/enable")
 async def enable_peer(public_key: str):
     """فعال کردن مجدد یک پیر"""
     # Find peer's original allowed IPs from config
