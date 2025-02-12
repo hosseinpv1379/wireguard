@@ -211,39 +211,37 @@ class WireGuardBot:
             await query.message.reply_text(f"❌ خطا: {message}")
             await self._show_main_menu(query)
             return SELECTING_ACTION
-            
-        if success:
-            # Generate QR code
-            config = self._generate_client_config(
-                user_data['name'],
-                keys['private'],
-                keys['public']
-            )
-            qr = qrcode.QRCode(version=1, box_size=10, border=5)
-            qr.add_data(config)
-            qr.make(fit=True)
-            
-            # Save QR code to buffer
-            buffer = BytesIO()
-            qr.make_image(fill_color="black", back_color="white").save(buffer, 'PNG')
-            buffer.seek(0)
-            
-            # Send config and QR code
-            await query.message.reply_document(
-                document=buffer,
-                filename=f"{user_data['name']}_config.png",
-                caption=f"🎉 کاربر {user_data['name']} با موفقیت ایجاد شد!\n\n"
-                        f"تنظیمات کانفیگ به صورت QR code ارسال شد."
-            )
-            
-            # Send text config
-            await query.message.reply_text(
-                f"```\n{config}\n```",
-                parse_mode='MarkdownV2'
-            )
-            
-        else:
-            await query.message.reply_text("❌ خطا در ایجاد کاربر")
+        
+        # Generate config
+        config = self._generate_client_config(
+            user_data['name'],
+            keys['private'],
+            keys['public']
+        )
+        
+        # Generate QR code
+        qr = qrcode.QRCode(version=1, box_size=10, border=5)
+        qr.add_data(config)
+        qr.make(fit=True)
+        
+        # Save QR code to buffer
+        buffer = BytesIO()
+        qr.make_image(fill_color="black", back_color="white").save(buffer, 'PNG')
+        buffer.seek(0)
+        
+        # Send config and QR code
+        await query.message.reply_document(
+            document=buffer,
+            filename=f"{user_data['name']}_config.png",
+            caption=f"🎉 کاربر {user_data['name']} با موفقیت ایجاد شد!\n\n"
+                    f"تنظیمات کانفیگ به صورت QR code ارسال شد."
+        )
+        
+        # Send text config
+        await query.message.reply_text(
+            f"```\n{config}\n```",
+            parse_mode='MarkdownV2'
+        )
         
         # Clean up and return to main menu
         del self.user_data[update.effective_user.id]
