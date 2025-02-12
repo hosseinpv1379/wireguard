@@ -1,27 +1,27 @@
 {
-  "telegram_token": "7634279369:AAEtvM009A-LT4B73yy1LAtuCKalS1mDsDo",
-  "admin_ids": [
-    7110626779
-  ],
-  "server_endpoint": "202.78.171.138:51820",
-  "server_settings": {
-      "interface": "wg0",
-      "public_key": "yHLVvfInOpKng0I+5a5bQc0c9IhJxtWnBEytQaSGTxE=",
-      "subnet": "10.0.0.0/24",
-      "dns": "1.1.1.1",
-      "allowed_ips": "0.0.0.0/0"
-  },
-  "quota_settings": {
-      "default_data_limit": 10737418240, 
-      "default_time_limit": 30,  
-      "check_interval": 300 
-  },
-  "database": {
-      "path": "/etc/wireguard/clients.db"
-  },
-  "paths": {
-      "wireguard_config": "/etc/wireguard/wg0.conf",
-      "client_configs": "/etc/wireguard/clients/",
-      "log_file": "/var/log/wireguard-bot.log"
-  }
+    "telegram_token": "7634279369:AAEtvM009A-LT4B73yy1LAtuCKalS1mDsDo",
+    "admin_ids": [
+        7110626779
+    ],
+    "server_endpoint": "202.78.171.138:51820",
+    "server_settings": {
+        "interface": "wg0",
+        "public_key": "iB0/JMZWN41Wn0aqMfPrifoVHA6OzTe0ODc58X2KW1Y=",
+        "subnet": "10.0.0.0/24",
+        "dns": "1.1.1.1",
+        "allowed_ips": "0.0.0.0/0"
+    },
+    "quota_settings": {
+        "default_data_limit": 10737418240,
+        "default_time_limit": 30,
+        "check_interval": 300
+    },
+    "database": {
+        "path": "/etc/wireguard/clients.db"
+    },
+    "paths": {
+        "wireguard_config": "/etc/wireguard/wg0.conf",
+        "client_configs": "/etc/wireguard/clients/",
+        "log_file": "/var/log/wireguard-bot.log"
+    }
 }

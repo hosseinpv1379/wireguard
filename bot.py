@@ -260,19 +260,49 @@ class WireGuardBot:
 
     def _generate_client_config(self, name: str, private_key: str, public_key: str) -> str:
         """Generate client configuration"""
-        # این بخش باید با توجه به تنظیمات سرور شما تکمیل شود
+        # Get next available IP
+        next_ip = self._get_next_available_ip()
+        
+        # Load server config from config.json
+        with open('/opt/wireguard/config.json') as f:
+            config = json.load(f)
+        
+        server_config = config['server_settings']
+        
         config = f"""[Interface]
 PrivateKey = {private_key}
-Address = 10.0.0.2/24
-DNS = 1.1.1.1
+Address = {next_ip}/24
+DNS = {server_config['dns']}
 
 [Peer]
-PublicKey = {self._get_server_public_key()}
-Endpoint = your.server.com:51820
-AllowedIPs = 0.0.0.0/0
+PublicKey = {server_config['public_key']}
+Endpoint = {config['server_endpoint']}
+AllowedIPs = {server_config['allowed_ips']}
 PersistentKeepalive = 25
 """
         return config
+
+    def _get_next_available_ip(self) -> str:
+        """Get next available IP from subnet"""
+        with open('/opt/wireguard/config.json') as f:
+            config = json.load(f)
+        
+        base_ip = config['server_settings']['subnet'].split('.')[0:3]
+        base_ip = '.'.join(base_ip)
+        
+        # Check existing IPs
+        used_ips = []
+        with open(f"/etc/wireguard/{self.interface}.conf", 'r') as f:
+            content = f.read()
+            used_ips = re.findall(r'Address = (\d+\.\d+\.\d+\.\d+)', content)
+        
+        # Find next available IP
+        for i in range(2, 255):
+            candidate_ip = f"{base_ip}.{i}"
+            if candidate_ip not in used_ips:
+                return candidate_ip
+                
+        raise Exception("No available IPs in subnet")
 
     def _get_server_public_key(self) -> str:
         """Get server's public key"""
