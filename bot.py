@@ -40,7 +40,13 @@ class WireGuardBot:
         """
         self.token = token
         self.admin_ids = admin_ids
-        self.quota_manager = WireGuardQuotaManager()
+        
+        # Load config
+        with open('/opt/wireguard/config.json') as f:
+            self.config = json.load(f)
+        
+        self.interface = self.config['server_settings']['interface']
+        self.quota_manager = WireGuardQuotaManager(interface=self.interface)
         
         # Store temporary user data
         self.user_data = {}
@@ -211,37 +217,39 @@ class WireGuardBot:
             await query.message.reply_text(f"❌ خطا: {message}")
             await self._show_main_menu(query)
             return SELECTING_ACTION
-        
-        # Generate config
-        config = self._generate_client_config(
-            user_data['name'],
-            keys['private'],
-            keys['public']
-        )
-        
-        # Generate QR code
-        qr = qrcode.QRCode(version=1, box_size=10, border=5)
-        qr.add_data(config)
-        qr.make(fit=True)
-        
-        # Save QR code to buffer
-        buffer = BytesIO()
-        qr.make_image(fill_color="black", back_color="white").save(buffer, 'PNG')
-        buffer.seek(0)
-        
-        # Send config and QR code
-        await query.message.reply_document(
-            document=buffer,
-            filename=f"{user_data['name']}_config.png",
-            caption=f"🎉 کاربر {user_data['name']} با موفقیت ایجاد شد!\n\n"
-                    f"تنظیمات کانفیگ به صورت QR code ارسال شد."
-        )
-        
-        # Send text config
-        await query.message.reply_text(
-            f"```\n{config}\n```",
-            parse_mode='MarkdownV2'
-        )
+            
+        if success:
+            # Generate QR code
+            config = self._generate_client_config(
+                user_data['name'],
+                keys['private'],
+                keys['public']
+            )
+            qr = qrcode.QRCode(version=1, box_size=10, border=5)
+            qr.add_data(config)
+            qr.make(fit=True)
+            
+            # Save QR code to buffer
+            buffer = BytesIO()
+            qr.make_image(fill_color="black", back_color="white").save(buffer, 'PNG')
+            buffer.seek(0)
+            
+            # Send config and QR code
+            await query.message.reply_document(
+                document=buffer,
+                filename=f"{user_data['name']}_config.png",
+                caption=f"🎉 کاربر {user_data['name']} با موفقیت ایجاد شد!\n\n"
+                        f"تنظیمات کانفیگ به صورت QR code ارسال شد."
+            )
+            
+            # Send text config
+            await query.message.reply_text(
+                f"```\n{config}\n```",
+                parse_mode='MarkdownV2'
+            )
+            
+        else:
+            await query.message.reply_text("❌ خطا در ایجاد کاربر")
         
         # Clean up and return to main menu
         del self.user_data[update.effective_user.id]
@@ -267,7 +275,7 @@ class WireGuardBot:
         next_ip = self._get_next_available_ip()
         
         # Load server config from config.json
-        with open('config.json') as f:
+        with open('/opt/wireguard/config.json') as f:
             config = json.load(f)
         
         server_config = config['server_settings']
@@ -287,17 +295,34 @@ PersistentKeepalive = 25
 
     def _get_next_available_ip(self) -> str:
         """Get next available IP from subnet"""
-        with open('config.json') as f:
-            config = json.load(f)
-        
-        base_ip = config['server_settings']['subnet'].split('.')[0:3]
+        base_ip = self.config['server_settings']['subnet'].split('.')[0:3]
         base_ip = '.'.join(base_ip)
         
         # Check existing IPs
         used_ips = []
-        with open(f"/etc/wireguard/{self.interface}.conf", 'r') as f:
+        wg_config = f"/etc/wireguard/{self.interface}.conf"
+        
+        if not os.path.exists(wg_config):
+            # اگر فایل کانفیگ وجود ندارد، آن را بسازیم
+            self._create_initial_wg_config()
+        
+        with open(wg_config, 'r') as f:
             content = f.read()
             used_ips = re.findall(r'Address = (\d+\.\d+\.\d+\.\d+)', content)
+
+    def _create_initial_wg_config(self):
+        """Create initial WireGuard config file if it doesn't exist"""
+        config = f"""[Interface]
+PrivateKey = {self.config['server_settings'].get('private_key', '')}
+Address = {self.config['server_settings']['subnet']}
+ListenPort = {self.config['server_endpoint'].split(':')[1]}
+PostUp = iptables -A FORWARD -i %i -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+
+# Client configurations will be added below
+"""
+        with open(f"/etc/wireguard/{self.interface}.conf", 'w') as f:
+            f.write(config)
         
         # Find next available IP
         for i in range(2, 255):
