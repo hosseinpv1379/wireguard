@@ -200,13 +200,18 @@ class WireGuardBot:
             
         # Generate keys and add client
         keys = self._generate_wireguard_keys()
-        success = self.quota_manager.add_client(
+        success, message = self.quota_manager.add_client(
             name=user_data['name'],
             public_key=keys['public'],
             data_quota=user_data['quota'],
             time_quota=user_data['time']
         )
         
+        if not success:
+            await query.message.reply_text(f"❌ خطا: {message}")
+            await self._show_main_menu(query)
+            return SELECTING_ACTION
+            
         if success:
             # Generate QR code
             config = self._generate_client_config(
