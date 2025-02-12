@@ -1,13 +1,12 @@
 {
   "telegram_token": "7634279369:AAEtvM009A-LT4B73yy1LAtuCKalS1mDsDo",
   "admin_ids": [
-      123456789,
-      987654321
+    7110626779
   ],
   "server_endpoint": "202.78.171.138:51820",
   "server_settings": {
       "interface": "wg0",
-      "public_key": "YOUR_SERVER_PUBLIC_KEY",
+      "public_key": "yHLVvfInOpKng0I+5a5bQc0c9IhJxtWnBEytQaSGTxE=",
       "subnet": "10.0.0.0/24",
       "dns": "1.1.1.1",
       "allowed_ips": "0.0.0.0/0"
